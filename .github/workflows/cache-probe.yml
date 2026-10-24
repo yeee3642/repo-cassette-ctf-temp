@@ -1,0 +1,20 @@
+name: Build Actions cache transport probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create probe payload
+        run: cp payload.json cache-probe.json
+      - uses: actions/cache/save@v4
+        with:
+          path: cache-probe.json
+          key: repo-cassette-cache-${{ github.run_id }}
