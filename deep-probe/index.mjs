@@ -46,6 +46,17 @@ async function uploadAndFinalize(name, created) {
     size: String(placeholder.length),
     hash: StringValue.create({value: `sha256:${digest}`}),
   });
+  const internalDownload = await client.GetSignedArtifactURL({
+    workflowRunBackendId: ids.workflowRunBackendId,
+    workflowJobRunBackendId: ids.workflowJobRunBackendId,
+    name,
+  });
+  const internalUrl = new URL(internalDownload.signedUrl);
+  const internal = {
+    queryKeys: [...internalUrl.searchParams.keys()].sort(),
+    rsct: internalUrl.searchParams.get('rsct'),
+    apiVersion: internalUrl.searchParams.get('api-version'),
+  };
   const artifactId = String(finalized.artifactId);
   const api = await httpRequest(
     `https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/artifacts/${artifactId}/zip`,
@@ -61,7 +72,7 @@ async function uploadAndFinalize(name, created) {
       rscdHex: Buffer.from(url.searchParams.get('rscd') || '', 'utf8').toString('hex'),
     };
   }
-  return {artifactId, status: api.status, signed};
+  return {artifactId, status: api.status, signed, internal};
 }
 
 const nameCases = [
