@@ -1,0 +1,4 @@
+name: Probe legacy version with valid MIME
+runs:
+  using: node24
+  main: index.mjs
