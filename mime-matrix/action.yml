@@ -1,0 +1,5 @@
+name: Artifact MIME compatibility matrix
+description: Compare artifact MIME validation with Azure response overrides
+runs:
+  using: node24
+  main: index.mjs
