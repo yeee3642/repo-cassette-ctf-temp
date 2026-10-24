@@ -1,0 +1,4 @@
+name: probe-migrated-artifact-carrier
+runs:
+  using: node24
+  main: index.mjs
