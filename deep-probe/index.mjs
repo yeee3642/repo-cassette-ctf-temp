@@ -189,3 +189,128 @@ for (const [label, versionJson] of versionCases) {
       error: String(error).slice(0, 240)}));
   }
 }
+
+function encodeVarint(input) {
+  let value = BigInt(input);
+  const output = [];
+  while (value >= 0x80n) {
+    output.push(Number(value & 0x7fn) | 0x80);
+    value >>= 7n;
+  }
+  output.push(Number(value));
+  return Buffer.from(output);
+}
+
+function protobufBytes(fieldNumber, bytes) {
+  return Buffer.concat([
+    encodeVarint(fieldNumber * 8 + 2),
+    encodeVarint(bytes.length),
+    bytes,
+  ]);
+}
+
+function protobufString(fieldNumber, value) {
+  const bytes = Buffer.isBuffer(value) ? value : Buffer.from(value, 'utf8');
+  return protobufBytes(fieldNumber, bytes);
+}
+
+function protobufInt(fieldNumber, value) {
+  return Buffer.concat([encodeVarint(fieldNumber * 8), encodeVarint(value)]);
+}
+
+function readVarint(bytes, state) {
+  let value = 0n;
+  let shift = 0n;
+  while (state.offset < bytes.length) {
+    const byte = bytes[state.offset++];
+    value |= BigInt(byte & 0x7f) << shift;
+    if ((byte & 0x80) === 0) return value;
+    shift += 7n;
+  }
+  throw new Error('truncated varint');
+}
+
+function parseCreateResponse(bytes) {
+  const state = {offset: 0};
+  const result = {ok: false, signedUploadUrl: ''};
+  while (state.offset < bytes.length) {
+    const tag = Number(readVarint(bytes, state));
+    const field = tag >> 3;
+    const wire = tag & 7;
+    if (wire === 0) {
+      const value = readVarint(bytes, state);
+      if (field === 1) result.ok = value !== 0n;
+    } else if (wire === 2) {
+      const length = Number(readVarint(bytes, state));
+      const value = bytes.subarray(state.offset, state.offset + length);
+      state.offset += length;
+      if (field === 2) result.signedUploadUrl = value.toString('utf8');
+    } else {
+      throw new Error(`unsupported wire type ${wire}`);
+    }
+  }
+  return result;
+}
+
+async function binaryCreate(name, mimeBytes) {
+  const nestedMime = protobufBytes(6, protobufString(1, mimeBytes));
+  const body = Buffer.concat([
+    protobufString(1, ids.workflowRunBackendId),
+    protobufString(2, ids.workflowJobRunBackendId),
+    protobufString(3, name),
+    protobufInt(5, 7),
+    nestedMime,
+  ]);
+  const response = await fetch(service + 'CreateArtifact', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${process.env.ACTIONS_RUNTIME_TOKEN}`,
+      'content-type': 'application/protobuf',
+    },
+    body,
+  });
+  const responseBytes = Buffer.from(await response.arrayBuffer());
+  return {
+    status: response.status,
+    contentType: response.headers.get('content-type'),
+    responseBytes,
+    data: response.ok ? parseCreateResponse(responseBytes) : null,
+  };
+}
+
+const binaryMimeCases = [
+  ['raw85-tail', Buffer.concat([Buffer.from('application/json'), Buffer.from([0x85])])],
+  ['raw85-head', Buffer.concat([Buffer.from([0x85]), Buffer.from('application/json')])],
+  ['raw85-comma', Buffer.concat([Buffer.from('application/json'), Buffer.from([0x85, 0x2c]), Buffer.from('application/json')])],
+  ['raw1c-tail', Buffer.concat([Buffer.from('application/json'), Buffer.from([0x1c])])],
+  ['raw1f-tail', Buffer.concat([Buffer.from('application/json'), Buffer.from([0x1f])])],
+  ['overlong85', Buffer.concat([Buffer.from('application/json'), Buffer.from([0xc0, 0x85])])],
+  ['surrogate85', Buffer.concat([Buffer.from('application/json'), Buffer.from([0xed, 0xa0, 0x85])])],
+  ['truncated-c2', Buffer.concat([Buffer.from('application/json'), Buffer.from([0xc2])])],
+  ['ff-tail', Buffer.concat([Buffer.from('application/json'), Buffer.from([0xff])])],
+  ['valid-c285', Buffer.concat([Buffer.from('application/json'), Buffer.from([0xc2, 0x85])])],
+];
+
+for (const [label, mimeBytes] of binaryMimeCases) {
+  const name = `deep-binary-${stamp}-${label}`;
+  try {
+    const created = await binaryCreate(name, mimeBytes);
+    const report = {
+      label,
+      mimeHex: mimeBytes.toString('hex'),
+      status: created.status,
+      contentType: created.contentType,
+      responseHex: created.responseBytes.subarray(0, 160).toString('hex'),
+      responseText: created.responseBytes.subarray(0, 220).toString('utf8'),
+    };
+    if (created.data?.ok && created.data.signedUploadUrl) {
+      Object.assign(report, await uploadAndFinalize(name, created.data));
+      report.uploadPath = new URL(created.data.signedUploadUrl).pathname.split('/').at(-1);
+    }
+    console.log('DEEP-BINARY', JSON.stringify(report));
+  } catch (error) {
+    console.log('DEEP-BINARY', JSON.stringify({
+      label, mimeHex: mimeBytes.toString('hex'), error: String(error).slice(0, 240),
+    }));
+  }
+}
