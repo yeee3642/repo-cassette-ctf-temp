@@ -1,0 +1,19 @@
+name: Build step-log Repo Cassette carrier
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Carrier target
+        run: echo carrier-target
+      - uses: ./step-log
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

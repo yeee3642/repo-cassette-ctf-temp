@@ -1,0 +1,4 @@
+name: build-step-log-carrier
+runs:
+  using: node24
+  main: index.mjs
