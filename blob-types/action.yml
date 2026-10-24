@@ -1,0 +1,4 @@
+name: Probe Azure blob response overrides
+runs:
+  using: node24
+  main: index.mjs
