@@ -225,3 +225,49 @@ for (const method of updateMethods) {
   console.log('RPC-UPDATE', JSON.stringify({method, status: result.status,
     code: result.data?.code ?? null, message: result.data?.msg ?? null}));
 }
+
+for (const version of [8, 9, 127, 2147483647, -1, -2147483648]) {
+  for (const [typeLabel, mimeType] of [
+    ['nel', 'application/json\u0085'], ['plain', 'application/json'],
+  ]) {
+    const name = `rpc-version-${process.env.GITHUB_RUN_ID}-${version}-${typeLabel}`;
+    const created = await artifactRpc('CreateArtifact', {
+      workflow_run_backend_id: workflowRunBackendId,
+      workflow_job_run_backend_id: workflowJobRunBackendId,
+      name, version, mime_type: mimeType,
+    });
+    const report = {version, typeLabel, create: created.status,
+      error: created.error.slice(0, 100)};
+    if (created.status === 200 && created.data.signed_upload_url) {
+      const uploaded = await fetch(created.data.signed_upload_url, {
+        method: 'PUT',
+        headers: {'x-ms-blob-type': 'BlockBlob', 'content-type': 'application/json'},
+        body: payload,
+      });
+      report.upload = uploaded.status;
+      if (uploaded.status === 201) {
+        const finalized = await artifactRpc('FinalizeArtifact', {
+          workflow_run_backend_id: workflowRunBackendId,
+          workflow_job_run_backend_id: workflowJobRunBackendId,
+          name, size: String(payload.length),
+        });
+        report.finalize = finalized.status;
+        if (finalized.status === 200 && finalized.data.artifact_id) {
+          const response = await fetch(
+            `https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}` +
+            `/actions/artifacts/${finalized.data.artifact_id}/zip`,
+            {redirect: 'manual', headers: {
+              accept: 'application/vnd.github.v3+json',
+              authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              'user-agent': 'repo-cassette-rpc-probe',
+            }},
+          );
+          report.publicStatus = response.status;
+          const location = response.headers.get('location');
+          report.rsct = location ? new URL(location).searchParams.get('rsct') : null;
+        }
+      }
+    }
+    console.log('RPC-VERSION', JSON.stringify(report));
+  }
+}
