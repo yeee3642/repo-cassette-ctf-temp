@@ -1,0 +1,21 @@
+name: Post-finalize artifact state probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --ignore-scripts
+      - run: node postfinal-action/index.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
