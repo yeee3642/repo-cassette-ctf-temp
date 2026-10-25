@@ -1,0 +1,4 @@
+name: Probe v6 artifact name header edges
+runs:
+  using: node24
+  main: index.mjs
