@@ -62,11 +62,7 @@ async function inspect(id, phase) {
   };
 }
 
-const cases = [
-  ['v6-to-v7-nel', 6, nel, 7, nel],
-  ['v6-to-v7-json', 6, nel, 7, 'application/json'],
-  ['v7-to-v6-nel', 7, 'application/json', 6, nel],
-];
+const cases = [];
 for (const [label, firstVersion, firstMime, secondVersion, secondMime] of cases) {
   const name = 'cassette-postfinal-' + label + '-' + process.env.GITHUB_RUN_ID;
   const result = {label};
@@ -102,8 +98,7 @@ for (const [label, firstVersion, firstMime, secondVersion, secondMime] of cases)
 }
 
 for (const [label, mime] of [
-  ['nel-before-comma', 'application/json\u0085,application/json'],
-  ['nel-before-semicolon', 'application/json\u0085; charset=utf-8'],
+  ['nel-after-nul', 'application/json\u0000\u0085'],
 ]) {
   const name = 'cassette-mime-' + label + '-' + process.env.GITHUB_RUN_ID;
   const result = {label};
