@@ -1,0 +1,4 @@
+name: Probe artifact finalization fields
+runs:
+  using: node24
+  main: index.mjs
