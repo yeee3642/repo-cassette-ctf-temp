@@ -92,3 +92,48 @@ for (const length of lengths) {
     console.log('LENGTH-COLLISION', JSON.stringify(row));
   }
 }
+
+const unicodeUnits = [
+  ['latin2', 'é', 140],
+  ['cjk3', '雪', 100],
+  ['emoji4', '💥', 75],
+  ['combining2', 'e\u0301', 140],
+  ['zwj3', 'x\u200dy', 100],
+  ['supplementary4', '\u{10085}', 75],
+];
+
+for (const [label, unit, count] of unicodeUnits) {
+  for (const reverse of [false, true]) {
+    const prefix = `uc-${stamp}-${label}-` + unit.repeat(count);
+    const names = [prefix + 'A', prefix + 'B'];
+    const specs = reverse
+      ? [[names[1], 7, 'application/json'], [names[0], 6, odd]]
+      : [[names[0], 6, odd], [names[1], 7, 'application/json']];
+    const attempts = await Promise.allSettled(specs.map(args => create(...args)));
+    const row = {label, reverse,
+      codeUnits: names.map(name => name.length),
+      codePoints: names.map(name => [...name].length),
+      bytes: names.map(name => Buffer.byteLength(name)),
+      creates: [], finalizes: []};
+    for (const attempt of attempts) {
+      if (attempt.status === 'rejected') {
+        row.creates.push({ok: false, error: String(attempt.reason).split(': ').at(-1).slice(0, 140)});
+      } else {
+        const url = attempt.value.signedUploadUrl;
+        row.creates.push({ok: true, blob: new URL(url).pathname.split('/').at(-1)});
+        await upload(url);
+      }
+    }
+    for (let index = 0; index < attempts.length; index++) {
+      if (attempts[index].status !== 'fulfilled') continue;
+      try {
+        const done = await finalize(specs[index][0]);
+        row.finalizes.push({ok: true, id: done.artifactId,
+          download: await inspect(done.artifactId)});
+      } catch (error) {
+        row.finalizes.push({ok: false, error: String(error).split(': ').at(-1).slice(0, 140)});
+      }
+    }
+    console.log('UNICODE-LENGTH-COLLISION', JSON.stringify(row));
+  }
+}
