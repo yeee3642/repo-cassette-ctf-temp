@@ -13,6 +13,8 @@ const digest = createHash('sha256').update(payload).digest('hex');
 const namePrefix = `name-header-${process.env.GITHUB_RUN_ID}-`;
 
 const cases = [
+  ['plain-control', 'plain.json'],
+  ['amp-control', 'amp&api-version=2012-02-12.json'],
   ['crlf-header', 'a\r\nContent-Type: application/json\u0085'],
   ['lf-header', 'b\nContent-Type: application/json\u0085'],
   ['cr-header', 'c\rContent-Type: application/json\u0085'],
@@ -54,6 +56,10 @@ async function check(label, suffix) {
     result.create = 'failed';
     result.errorName = error.name;
     result.errorStatus = error.statusCode ?? error.status ?? null;
+    result.httpCode = String(error.message).match(/\((\d{3})\)/)?.[1] ?? null;
+    result.errorClass = /name/i.test(String(error.message)) ? 'name' :
+      /unauthorized|forbidden/i.test(String(error.message)) ? 'authorization' :
+      /artifact/i.test(String(error.message)) ? 'artifact' : 'other';
     return result;
   }
 
