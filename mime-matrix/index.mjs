@@ -14,6 +14,14 @@ const digest = createHash('sha256').update(payload).digest('hex');
 const stamp = process.env.GITHUB_RUN_ID;
 
 const candidates = [
+  ['lead-nel', '\u0085application/json'],
+  ['lead-fs', '\u001capplication/json'],
+  ['lead-gs', '\u001dapplication/json'],
+  ['lead-rs', '\u001eapplication/json'],
+  ['lead-us', '\u001fapplication/json'],
+  ['lead-vt', '\u000bapplication/json'],
+  ['lead-ff', '\u000capplication/json'],
+  ['lead-nbsp-nel', '\u00a0\u0085application/json'],
   ['wild-all', '*/*'],
   ['wild-app', 'application/*'],
   ['wild-sub', '*/json'],
