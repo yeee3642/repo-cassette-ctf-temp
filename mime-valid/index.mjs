@@ -18,12 +18,7 @@ async function rpc(method, body) {
   return {status: response.status, data, error: response.ok ? '' : text.slice(0, 120)};
 }
 
-const types = [
-  'application/json', 'application/octet-stream', 'text/plain', 'image/png',
-  'application/zip', 'application/x-ndjson', 'application/vnd.github.v3+json',
-  'text/json', 'application/sarif+json', 'application/x-json',
-  'application/javascript', 'application/pdf',
-];
+const types = ['application/json'];
 for (let index = 0; index < types.length; index++) {
   const mime = types[index];
   const name = `mime-valid-${process.env.GITHUB_RUN_ID}-${index}.json`;
@@ -33,7 +28,7 @@ for (let index = 0; index < types.length; index++) {
     name,
   };
   const created = await rpc('CreateArtifact', {
-    ...base, version: 7, mime_type: mime,
+    ...base, version: 8, mime_type: mime,
   });
   const report = {mime, create: created.status, error: created.error};
   if (created.status === 200 && created.data.signed_upload_url) {
