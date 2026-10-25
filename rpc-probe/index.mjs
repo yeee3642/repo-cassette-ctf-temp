@@ -202,3 +202,26 @@ for (const [label, fields] of rawCases) {
     status: response.status, rsctHex: responseType &&
       Buffer.from(responseType, 'latin1').toString('hex')}));
 }
+
+// Check whether the results service exposes a metadata update RPC. These
+// requests target a nonexistent artifact name, so even a recognized method
+// cannot change a real artifact.
+const updateMethods = [
+  'UpdateArtifact', 'UpdateArtifactMetadata', 'PatchArtifact',
+  'SetArtifactMetadata', 'SetArtifactMimeType', 'UpdateArtifactMimeType',
+  'SetArtifactContentType', 'UpdateArtifactContentType',
+  'RenameArtifact', 'ModifyArtifact', 'ReplaceArtifact',
+  'UpdateArtifactProperties', 'PatchArtifactProperties',
+];
+const updateProbe = {
+  workflow_run_backend_id: workflowRunBackendId,
+  workflow_job_run_backend_id: workflowJobRunBackendId,
+  name: `absent-${process.env.GITHUB_RUN_ID}`,
+  artifact_id: '0',
+  mime_type: 'application/json',
+};
+for (const method of updateMethods) {
+  const result = await artifactRpc(method, updateProbe);
+  console.log('RPC-UPDATE', JSON.stringify({method, status: result.status,
+    code: result.data?.code ?? null, message: result.data?.msg ?? null}));
+}
