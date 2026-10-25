@@ -1,0 +1,5 @@
+name: Artifact length collision probe
+description: Probe backend name truncation across v6 and v7 artifacts
+runs:
+  using: node24
+  main: index.mjs

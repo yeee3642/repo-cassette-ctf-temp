@@ -1,0 +1,21 @@
+name: Probe artifact name length collisions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - run: npm install --ignore-scripts
+      - uses: ./length-collision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
