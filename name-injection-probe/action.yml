@@ -1,0 +1,4 @@
+name: Artifact name header check
+runs:
+  using: node24
+  main: index.mjs
