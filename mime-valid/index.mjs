@@ -28,9 +28,9 @@ for (let index = 0; index < types.length; index++) {
     name,
   };
   const created = await rpc('CreateArtifact', {
-    ...base, version: 8, mime_type: mime,
+    ...base, version: 7,
   });
-  const report = {mime, create: created.status, error: created.error};
+  const report = {declaration: 'omitted-mime-v7', mime, create: created.status, error: created.error};
   if (created.status === 200 && created.data.signed_upload_url) {
     const uploaded = await fetch(created.data.signed_upload_url, {
       method: 'PUT',
