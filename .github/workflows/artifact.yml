@@ -16,6 +16,6 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --ignore-scripts
-      - uses: ./artifact-action
+      - uses: ./pending-probe
         env:
           GITHUB_TOKEN: ${{ github.token }}
