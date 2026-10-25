@@ -9,6 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./mime-valid
+      - uses: ./twirp-mime-parser
         env:
           GITHUB_TOKEN: ${{ github.token }}

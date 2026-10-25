@@ -1,0 +1,4 @@
+name: Bounded Twirp MIME parser probe
+runs:
+  using: node24
+  main: index.mjs
