@@ -14,12 +14,11 @@ const namePrefix = `name-header-${process.env.GITHUB_RUN_ID}-`;
 
 const cases = [
   ['plain-control', 'plain.json'],
-  ['amp-control', 'amp&api-version=2012-02-12.json'],
-  ['crlf-header', 'a\r\nContent-Type: application/json\u0085'],
-  ['lf-header', 'b\nContent-Type: application/json\u0085'],
-  ['cr-header', 'c\rContent-Type: application/json\u0085'],
-  ['percent-crlf', 'd%0D%0AContent-Type:%20application/json%85'],
-  ['quote-semicolon', 'e"; api-version=2012-02-12; filename="x'],
+  ['crlf-only', 'a\r\nx'],
+  ['encoded-crlf-only', 'b%0D%0Ax'],
+  ['nul-crlf-header', 'c\0\r\nContent-Type: application/json\u0085'],
+  ['nul-encoded-header', 'd\0%0D%0AContent-Type%3A%20application%2Fjson%C2%85'],
+  ['encoded-header', 'e%0D%0AContent-Type%3A%20application%2Fjson%C2%85'],
 ];
 
 function getFinal(url) {
@@ -95,14 +94,20 @@ async function check(label, suffix) {
   const target = new URL(location);
   result.rsctHex = Buffer.from(target.searchParams.get('rsct') || '', 'latin1').toString('hex');
   result.hasApiVersion = target.searchParams.has('api-version');
-  result.rscdLength = (target.searchParams.get('rscd') || '').length;
+  const disposition = target.searchParams.get('rscd') || '';
+  result.rscdLength = disposition.length;
+  result.rscdHasCR = disposition.includes('\r');
+  result.rscdHasLF = disposition.includes('\n');
+  result.rscdHasEncodedCRLF = /%0d|%0a/i.test(disposition);
   try {
     const final = await getFinal(location);
     result.finalStatus = final.status;
     result.finalBodySha256 = createHash('sha256').update(final.body).digest('hex');
     result.contentTypeHex = Buffer.from(final.headers['content-type'] || '', 'latin1').toString('hex');
     result.contentTypeRawHex = [];
+    result.rawHeaderNames = [];
     for (let i = 0; i + 1 < final.rawHeaders.length; i += 2) {
+      result.rawHeaderNames.push(final.rawHeaders[i].toLowerCase());
       if (final.rawHeaders[i].toLowerCase() === 'content-type') {
         result.contentTypeRawHex.push(Buffer.from(final.rawHeaders[i + 1], 'latin1').toString('hex'));
       }
