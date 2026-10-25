@@ -106,7 +106,36 @@ try {
     pendingId = item?.databaseId ?? null;
     if (!pendingId) await pause(300);
   }
-  console.log('PENDING-LIST', JSON.stringify({visibleBeforeFinalize: Boolean(pendingId)}));
+  const internalVisible = Boolean(pendingId);
+  let publicId = null;
+  if (!pendingId) {
+    stage = 'public-list-before-finalize';
+    for (let attempt = 0; attempt < 3 && !publicId; attempt++) {
+      const listed = await request(
+        `https://api.github.com/repos/${repository}/actions/runs/${process.env.GITHUB_RUN_ID}/artifacts?per_page=100`,
+        {
+          accept: 'application/vnd.github.v3+json',
+          authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          'user-agent': 'repo-cassette-pending-bounded',
+        },
+      );
+      let artifacts = [];
+      if (listed.status === 200) {
+        try {
+          artifacts = JSON.parse(listed.body.toString('utf8')).artifacts ?? [];
+        } catch { /* status is reported; no body is logged */ }
+      }
+      publicId = artifacts.find(artifact => artifact.name === name)?.id ?? null;
+      console.log('PENDING-PUBLIC-LIST', JSON.stringify({
+        attempt, status: listed.status, visible: Boolean(publicId),
+      }));
+      if (!publicId) await pause(400);
+    }
+    pendingId = publicId;
+  }
+  console.log('PENDING-LIST', JSON.stringify({
+    internalVisible, publicVisible: Boolean(publicId), visibleBeforeFinalize: Boolean(pendingId),
+  }));
 
   let body = placeholder;
   if (pendingId) {
@@ -114,11 +143,7 @@ try {
     body = maliciousBody(pendingId);
     await blob.uploadData(body, {blobHTTPHeaders: {blobContentType: nelType}});
     stage = 'public-before-finalize';
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const status = await publicProbe(pendingId, body, 'before-finalize', attempt);
-      if (status !== 404) break;
-      await pause(350);
-    }
+    await publicProbe(pendingId, body, 'before-finalize', 0);
   }
 
   stage = 'finalize';
