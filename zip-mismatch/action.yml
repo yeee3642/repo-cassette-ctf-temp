@@ -1,0 +1,4 @@
+name: Probe zip-named artifact MIME
+runs:
+  using: node24
+  main: index.mjs

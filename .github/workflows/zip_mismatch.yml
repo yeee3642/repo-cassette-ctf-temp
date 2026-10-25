@@ -9,6 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: node zip-mismatch/index.mjs
+      - uses: ./zip-mismatch
         env:
           GITHUB_TOKEN: ${{ github.token }}
