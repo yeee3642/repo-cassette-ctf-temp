@@ -1,0 +1,14 @@
+name: Probe valid artifact MIME overrides
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./mime-valid
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

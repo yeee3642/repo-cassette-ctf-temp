@@ -1,0 +1,4 @@
+name: Probe valid artifact MIME overrides
+runs:
+  using: node24
+  main: index.mjs
