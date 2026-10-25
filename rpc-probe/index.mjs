@@ -132,3 +132,73 @@ for (const [label, phase, key] of candidates) {
     status: response.status, rsctHex: responseType &&
       Buffer.from(responseType, 'latin1').toString('hex')}));
 }
+
+const nel = 'application/json\u0085';
+const rawCases = [
+  ['snake-then-camel', `"version":7,"mime_type":"application/json","mimeType":${JSON.stringify(nel)}`],
+  ['camel-then-snake', `"version":7,"mimeType":${JSON.stringify(nel)},"mime_type":"application/json"`],
+  ['duplicate-safe-then-nel', `"version":7,"mime_type":"application/json","mime_type":${JSON.stringify(nel)}`],
+  ['duplicate-nel-then-safe', `"version":7,"mime_type":${JSON.stringify(nel)},"mime_type":"application/json"`],
+  ['nested-safe-then-nel', `"version":7,"mime_type":{"value":"application/json","value":${JSON.stringify(nel)}}`],
+  ['nested-nel-then-safe', `"version":7,"mime_type":{"value":${JSON.stringify(nel)},"value":"application/json"}`],
+  ['v6-then-v7-nel', `"version":6,"version":7,"mime_type":${JSON.stringify(nel)}`],
+  ['v7-then-v6-nel', `"version":7,"version":6,"mime_type":${JSON.stringify(nel)}`],
+];
+
+for (const [label, fields] of rawCases) {
+  const name = `rpc-json-${process.env.GITHUB_RUN_ID}-${label}.json`;
+  const rawBody = '{' +
+    `"workflow_run_backend_id":${JSON.stringify(workflowRunBackendId)},` +
+    `"workflow_job_run_backend_id":${JSON.stringify(workflowJobRunBackendId)},` +
+    `"name":${JSON.stringify(name)},${fields}}`;
+  const createdResponse = await fetch(new URL(
+    '/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact',
+    process.env.ACTIONS_RESULTS_URL,
+  ), {
+    method: 'POST',
+    headers: {authorization: `Bearer ${token}`, 'content-type': 'application/json'},
+    body: rawBody,
+  });
+  const createdText = await createdResponse.text();
+  let created = {};
+  try { created = JSON.parse(createdText); } catch { /* report below */ }
+  if (createdResponse.status !== 200 || !created.signed_upload_url) {
+    console.log('RPC-JSON-DUP', JSON.stringify({label, create: createdResponse.status,
+      error: createdText.slice(0, 180)}));
+    continue;
+  }
+  const uploaded = await fetch(created.signed_upload_url, {
+    method: 'PUT',
+    headers: {'x-ms-blob-type': 'BlockBlob', 'content-type': 'application/json'},
+    body: payload,
+  });
+  if (uploaded.status !== 201) {
+    console.log('RPC-JSON-DUP', JSON.stringify({label, upload: uploaded.status}));
+    continue;
+  }
+  const finalized = await artifactRpc('FinalizeArtifact', {
+    workflow_run_backend_id: workflowRunBackendId,
+    workflow_job_run_backend_id: workflowJobRunBackendId,
+    name,
+    size: String(payload.length),
+  });
+  const artifactId = finalized.data.artifact_id;
+  if (finalized.status !== 200 || !artifactId) {
+    console.log('RPC-JSON-DUP', JSON.stringify({label, finalize: finalized.status,
+      error: finalized.error}));
+    continue;
+  }
+  const response = await fetch(
+    `https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/actions/artifacts/${artifactId}/zip`,
+    {redirect: 'manual', headers: {
+      accept: 'application/vnd.github.v3+json',
+      authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+      'user-agent': 'repo-cassette-rpc-probe',
+    }},
+  );
+  const location = response.headers.get('location');
+  const responseType = location ? new URL(location).searchParams.get('rsct') : null;
+  console.log('RPC-JSON-DUP', JSON.stringify({label, artifactId: String(artifactId),
+    status: response.status, rsctHex: responseType &&
+      Buffer.from(responseType, 'latin1').toString('hex')}));
+}
