@@ -1,0 +1,14 @@
+name: Probe zip-named v7 artifact MIME
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: node zip-mismatch/index.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
