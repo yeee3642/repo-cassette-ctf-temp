@@ -1,7 +1,9 @@
 name: Post-finalize artifact state probe
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - repo-cassette-postfinal-probe-20261025
 
 permissions:
   actions: write
